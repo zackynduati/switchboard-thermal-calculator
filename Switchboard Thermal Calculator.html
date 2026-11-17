@@ -1,0 +1,430 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Switchboard Thermal Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: inputs on the left as stacked sections, results in a sticky column on the right; one column on phones with results first. */
+:root {
+  --bg: #f2f4f7; --surface: #ffffff; --sunken: #f7f9fb;
+  --ink: #16202b; --ink2: #475667; --muted: #6f7f92; --line: #d5dce5;
+  --accent: #1c5db5; --accent-ink: #ffffff; --bar: #3a78c8; --track: #e4e9f0;
+  --good: #17754a; --good-bg: #e3f4ea; --warn: #8f5600; --warn-bg: #fbefd6; --crit: #ab2219; --crit-bg: #fbe5e2;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141b; --surface: #171f29; --sunken: #121921;
+  --ink: #e6ebf1; --ink2: #b3bfcd; --muted: #8696a8; --line: #2b3644;
+  --accent: #74abff; --accent-ink: #0b1320; --bar: #5b97e6; --track: #232d3a;
+  --good: #63cf95; --good-bg: #143024; --warn: #e8b256; --warn-bg: #3a2c10; --crit: #ff9188; --crit-bg: #3d1a17;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f141b; --surface: #171f29; --sunken: #121921;
+  --ink: #e6ebf1; --ink2: #b3bfcd; --muted: #8696a8; --line: #2b3644;
+  --accent: #74abff; --accent-ink: #0b1320; --bar: #5b97e6; --track: #232d3a;
+  --good: #63cf95; --good-bg: #143024; --warn: #e8b256; --warn-bg: #3a2c10; --crit: #ff9188; --crit-bg: #3d1a17;
+  color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px }
+h1 { font-family: var(--font-head); font-size: 24px; font-weight: 600; margin: 0; text-wrap: balance }
+h2 { font-family: var(--font-head); font-size: 16px; font-weight: 600; margin: 0 }
+h3 { font-size: 13px; font-weight: 600; margin: 0; color: var(--ink2) }
+p { margin: 0 }
+.lede { color: var(--ink2); max-width: 70ch }
+.top { display: flex; flex-direction: column; gap: 6px }
+.boardbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end }
+.boardbar .field { flex: 1 1 240px; max-width: 420px }
+.grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start }
+.col { display: flex; flex-direction: column; gap: 18px; min-width: 0 }
+.results { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)) }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr) } .results { position: static; order: -1 } }
+section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.sechead { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between }
+.hint { color: var(--muted); font-size: 12.5px }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+label { font-size: 12px; font-weight: 500; color: var(--ink2) }
+input, select, button { font: inherit; color: var(--ink) }
+input, select { background: var(--sunken); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums }
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+button { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; font-weight: 500 }
+button:hover { border-color: var(--accent); color: var(--accent) }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+button.primary:hover { color: var(--accent-ink); filter: brightness(1.08) }
+button.danger { color: var(--crit) }
+button.x { padding: 4px 9px; color: var(--muted) }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums }
+th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--ink2); padding: 8px 6px; background: var(--sunken); border-bottom: 1px solid var(--line); vertical-align: bottom; line-height: 1.25 }
+td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: middle }
+tr:last-child td { border-bottom: 0 }
+td input, td select { padding: 5px 6px }
+td.desc { min-width: 200px } td.n { min-width: 78px; width: 90px } td.out { text-align: right; white-space: nowrap; font-weight: 600; min-width: 70px }
+th.out { text-align: right }
+tfoot td { background: var(--sunken); font-weight: 600 }
+.verdict { border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px }
+.verdict .tag { font-family: var(--font-head); font-size: 18px; font-weight: 600 }
+.verdict.good { background: var(--good-bg); color: var(--good) } .verdict.warn { background: var(--warn-bg); color: var(--warn) } .verdict.crit { background: var(--crit-bg); color: var(--crit) }
+.verdict p { color: var(--ink) }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.tile .k { font-size: 12px; color: var(--ink2) } .tile .v { font-family: var(--font-head); font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums }
+.tile .v small { font-family: var(--font-body); font-size: 12.5px; font-weight: 500; color: var(--muted) }
+.tile .s { font-size: 12px; color: var(--muted) }
+.bars { display: flex; flex-direction: column; gap: 8px }
+.barrow { display: grid; grid-template-columns: 118px minmax(0, 1fr) 84px; gap: 8px; align-items: center; font-size: 12.5px }
+.barrow .lab { color: var(--ink2) } .barrow .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600 }
+.track { position: relative; height: 14px; background: var(--track); border-radius: 4px }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px }
+.fill.over { background: var(--crit) }
+.limit { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.legend { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center }
+.legend i { display: inline-block; width: 2px; height: 12px; background: var(--ink) }
+.opts { display: flex; flex-direction: column; gap: 6px }
+.opt { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; font-variant-numeric: tabular-nums }
+.opt.rec { border-color: var(--accent); }
+.opt b { font-weight: 600 } .opt span { color: var(--muted); font-size: 12.5px; text-align: right }
+.note { border-left: 3px solid var(--warn); background: var(--warn-bg); padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 13px }
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; color: var(--ink2); font-size: 13px }
+details { border-top: 1px solid var(--line); padding-top: 10px }
+summary { cursor: pointer; font-weight: 600; font-size: 13px }
+.work { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink2); font-variant-numeric: tabular-nums; overflow-x: auto }
+.work code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; color: var(--ink) }
+textarea { width: 100%; min-height: 150px; font: 12px ui-monospace, Consolas, monospace; background: var(--sunken); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px }
+.rowbtns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Switchboard Thermal Calculator</h1>
+    <p class="lede">Estimates the internal air temperature of a low-voltage switchboard from its heat losses and enclosure size, then sizes the filter fans needed to keep it within your limit. Loaded with the Phase II MDB as a worked example.</p>
+  </div>
+
+  <div class="boardbar">
+    <div class="field"><label for="boardSel">Board</label><select id="boardSel"></select></div>
+    <button id="btnNew" type="button">New board</button>
+    <button id="btnDup" type="button">Duplicate</button>
+    <button id="btnDel" type="button" class="danger">Delete</button>
+    <button id="btnReset" type="button">Restore examples</button>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <div class="sechead"><h2>Enclosure</h2><span class="hint">Body size without the plinth. Surface factors follow IEC 60890.</span></div>
+        <div class="fields">
+          <div class="field" style="grid-column: 1 / -1"><label for="b-name">Board name</label><input id="b-name" data-b="name" type="text"></div>
+          <div class="field"><label for="b-W">Width (mm)</label><input id="b-W" data-b="W" type="number" min="0" step="any"></div>
+          <div class="field"><label for="b-H">Height (mm)</label><input id="b-H" data-b="H" type="number" min="0" step="any"></div>
+          <div class="field"><label for="b-D">Depth (mm)</label><input id="b-D" data-b="D" type="number" min="0" step="any"></div>
+          <div class="field"><label for="b-k">Enclosure material</label><select id="b-k" data-b="k">
+            <option value="5.5">Painted sheet steel (5.5 W/m²K)</option><option value="4.5">Stainless steel (4.5 W/m²K)</option>
+            <option value="12">Aluminium (12 W/m²K)</option><option value="3.5">Plastic (3.5 W/m²K)</option></select></div>
+          <div class="field"><label for="b-top">Top</label><select id="b-top" data-b="top"><option value="exposed">Exposed</option><option value="covered">Covered</option></select></div>
+          <div class="field"><label for="b-rear">Rear</label><select id="b-rear" data-b="rear"><option value="exposed">Free, air gap behind</option><option value="wall">Against a wall</option></select></div>
+          <div class="field"><label for="b-left">Left side</label><select id="b-left" data-b="left"><option value="exposed">Exposed</option><option value="wall">Against a wall</option><option value="adjoining">Adjoining cubicle</option></select></div>
+          <div class="field"><label for="b-right">Right side</label><select id="b-right" data-b="right"><option value="exposed">Exposed</option><option value="wall">Against a wall</option><option value="adjoining">Adjoining cubicle</option></select></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="sechead"><h2>Site and limits</h2></div>
+        <div class="fields">
+          <div class="field"><label for="b-Ta">Highest room temperature (°C)</label><input id="b-Ta" data-b="Ta" type="number" step="any"></div>
+          <div class="field"><label for="b-Ti">Allowed air temperature inside (°C)</label><input id="b-Ti" data-b="Ti" type="number" step="any"></div>
+          <div class="field"><label for="b-alt">Site altitude (m)</label><input id="b-alt" data-b="alt" type="number" min="0" step="any"></div>
+          <div class="field"><label for="b-margin">Airflow margin for dirty filters (%)</label><input id="b-margin" data-b="margin" type="number" min="0" step="any"></div>
+          <div class="field"><label for="b-Tbar">Conductor operating temperature (°C)</label><input id="b-Tbar" data-b="Tbar" type="number" step="any"></div>
+          <div class="field" style="grid-column: span 2"><label for="b-sizes">Fan sizes available, with outlet filter (m³/h)</label><input id="b-sizes" data-b="sizes" type="text"></div>
+        </div>
+        <p class="hint">Breakers are usually rated for 40 °C air around them and need derating above that. Check the derating tables of your devices before raising the inside limit.</p>
+      </section>
+
+      <section class="card">
+        <div class="sechead"><h2>Heat losses</h2><span class="hint">Default watt values are typical figures. Replace them with manufacturer data.</span></div>
+
+        <div class="sechead"><h3>Breakers and switching devices</h3><button type="button" data-add="dev">Add device</button></div>
+        <div class="tablewrap"><table id="t-dev"></table></div>
+        <p class="hint">Loss scales with the square of load: loss = quantity × loss at rated current × (load ÷ rated)².</p>
+
+        <div class="sechead"><h3>Busbars and cables inside the board</h3><button type="button" data-add="cond">Add conductor</button></div>
+        <div class="tablewrap"><table id="t-cond"></table></div>
+        <p class="hint">Three loaded phases, neutral unloaded. Section is per conductor, so a 100 × 10 bar is 1000 mm². The AC factor covers skin and proximity effect on large bars.</p>
+
+        <div class="sechead"><h3>Other equipment</h3><button type="button" data-add="fix">Add item</button></div>
+        <div class="tablewrap"><table id="t-fix"></table></div>
+      </section>
+    </div>
+
+    <div class="col results" id="results" aria-live="polite">
+      <section class="card">
+        <div class="sechead"><h2>Result</h2><button id="btnCopy" type="button">Copy summary</button></div>
+        <div id="verdict" class="verdict"></div>
+        <div class="tiles" id="tiles"></div>
+        <div>
+          <h3 style="margin-bottom:8px">Air temperature rise above the room</h3>
+          <div class="bars" id="riseBars"></div>
+        </div>
+        <div id="fanBlock"></div>
+        <div>
+          <h3 style="margin-bottom:8px">Where the heat comes from</h3>
+          <div class="bars" id="lossBars"></div>
+        </div>
+        <div id="notes"></div>
+        <details id="workBox"><summary>Show the working</summary><div class="work" id="work"></div></details>
+        <textarea id="copyBox" hidden readonly aria-label="Summary text"></textarea>
+      </section>
+      <section class="card">
+        <h2>Limits of this method</h2>
+        <ul class="plain">
+          <li>It gives the average air temperature inside one enclosure. Air at the top of a tall board runs hotter than the average.</li>
+          <li>Partitioned boards (Form 3 or 4) trap heat in each cubicle. Check the most heavily loaded cubicle as its own board, with its sides set to adjoining cubicle.</li>
+          <li>IEC 61439-1 accepts temperature-rise verification by calculation only up to 1600 A. Above that, the design must be verified by test or by comparison with a tested design, so treat this as a design estimate.</li>
+          <li>Fans cool towards room temperature, never below it. Fan cut-outs also lower the IP rating to that of the filter.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var KEY = 'switchboardThermal.v1';
+  var DEFAULT_SIZES = '20, 55, 105, 160, 230, 370, 550, 700, 900';
+  function base(o) {
+    var b = { name: 'New board', W: 800, H: 2000, D: 600, k: '5.5', top: 'exposed', rear: 'exposed', left: 'exposed', right: 'exposed',
+      Ta: 35, Ti: 50, alt: 0, margin: 25, Tbar: 85, sizes: DEFAULT_SIZES, dev: [], cond: [], fix: [] };
+    for (var p in o) b[p] = o[p];
+    return b;
+  }
+  function examples() {
+    return [
+      base({ name: 'MDB Phase II, whole board (example)', W: 3940, H: 2200, D: 800, alt: 1800,
+        dev: [
+          { desc: 'ACB 2500 A 4-pole drawout, incomer', qty: 1, In: 2500, I: 2062, loss: 600 },
+          { desc: 'MCCB 630 A, Q1 PF plant', qty: 1, In: 630, I: 481, loss: 110 },
+          { desc: 'MCCB 250 A, Q6 and Q7', qty: 2, In: 250, I: 200, loss: 55 }
+        ],
+        cond: [
+          { desc: 'ACB links to main bus, 2 × 100×10 Cu', sets: 1, I: 2062, L: 1.2, n: 2, S: 1000, mat: 'Cu', kac: 1.2 },
+          { desc: 'Main horizontal bus, 2 × 100×10 Cu', sets: 1, I: 1450, L: 3.8, n: 2, S: 1000, mat: 'Cu', kac: 1.2 },
+          { desc: 'Q1 tap-off, 40×10 Cu', sets: 1, I: 481, L: 1.5, n: 1, S: 400, mat: 'Cu', kac: 1.05 },
+          { desc: 'Q6 and Q7 tap-offs, 30×5 Cu', sets: 2, I: 200, L: 1.5, n: 1, S: 150, mat: 'Cu', kac: 1 },
+          { desc: 'Incomer cable tails inside, 4 × 630 mm² Al', sets: 1, I: 2062, L: 0.4, n: 4, S: 630, mat: 'Al', kac: 1.1 }
+        ],
+        fix: [
+          { desc: 'Power meters, Rish LM1340', qty: 7, w: 5 },
+          { desc: 'Power factor controller', qty: 1, w: 10 },
+          { desc: 'Indicator lamps', qty: 21, w: 1 },
+          { desc: 'Control MCBs, PLC and relays', qty: 1, w: 50 },
+          { desc: 'Capacitors, 350 kvar at 0.5 W per kvar', qty: 1, w: 175 },
+          { desc: 'Capacitor contactors and fuses, 12 steps', qty: 12, w: 10 }
+        ] }),
+      base({ name: 'MDB Phase II, incomer cubicle only (example)', W: 800, H: 2200, D: 800, alt: 1800, left: 'adjoining', right: 'adjoining',
+        dev: [ { desc: 'ACB 2500 A 4-pole drawout, incomer', qty: 1, In: 2500, I: 2062, loss: 600 } ],
+        cond: [
+          { desc: 'ACB links to main bus, 2 × 100×10 Cu', sets: 1, I: 2062, L: 1.2, n: 2, S: 1000, mat: 'Cu', kac: 1.2 },
+          { desc: 'Main bus through the cubicle, 2 × 100×10 Cu', sets: 1, I: 1450, L: 0.8, n: 2, S: 1000, mat: 'Cu', kac: 1.2 },
+          { desc: 'Incomer cable tails inside, 4 × 630 mm² Al', sets: 1, I: 2062, L: 0.4, n: 4, S: 630, mat: 'Al', kac: 1.1 }
+        ],
+        fix: [ { desc: 'Power meters', qty: 2, w: 5 }, { desc: 'Indicator lamps', qty: 6, w: 1 } ] })
+    ];
+  }
+  var state = { boards: examples(), cur: 0 };
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved && saved.boards && saved.boards.length) { state = saved; state.boards = state.boards.map(base); if (!(state.cur < state.boards.length)) state.cur = 0; }
+  } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function B() { return state.boards[state.cur]; }
+  function $(id) { return document.getElementById(id); }
+  function num(v) { var x = parseFloat(v); return isFinite(x) ? x : 0; }
+  function fmt(x, d) { if (!isFinite(x)) return '–'; return x.toLocaleString('en-GB', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---------- physics
+  var FACE = { exposed: 0.9, wall: 0.5, adjoining: 0.5 };
+  function resistivity(mat, T) { return mat === 'Al' ? 0.0282 * (1 + 0.00403 * (T - 20)) : 0.017241 * (1 + 0.00393 * (T - 20)); } // ohm mm2/m
+  function devLoss(r) { var In = num(r.In); return In > 0 ? num(r.qty) * num(r.loss) * Math.pow(num(r.I) / In, 2) : 0; }
+  function condLoss(r, T) { var a = num(r.n) * num(r.S); return a > 0 ? num(r.sets) * 3 * Math.pow(num(r.I), 2) * resistivity(r.mat, T) * num(r.L) / a * (num(r.kac) || 1) : 0; }
+  function fixLoss(r) { return num(r.qty) * num(r.w); }
+  function calc(b) {
+    var W = num(b.W) / 1000, H = num(b.H) / 1000, D = num(b.D) / 1000, k = num(b.k), T = num(b.Tbar);
+    var faces = [
+      { n: 'Top', a: W * D, f: b.top === 'covered' ? 0.7 : 1.4 }, { n: 'Front', a: W * H, f: 0.9 }, { n: 'Rear', a: W * H, f: FACE[b.rear] },
+      { n: 'Left', a: D * H, f: FACE[b.left] }, { n: 'Right', a: D * H, f: FACE[b.right] } ];
+    var Ae = faces.reduce(function (s, x) { return s + x.a * x.f; }, 0);
+    var Pd = b.dev.reduce(function (s, r) { return s + devLoss(r); }, 0);
+    var Pc = b.cond.reduce(function (s, r) { return s + condLoss(r, T); }, 0);
+    var Pf = b.fix.reduce(function (s, r) { return s + fixLoss(r); }, 0);
+    var Pv = Pd + Pc + Pf, UA = k * Ae, Ta = num(b.Ta), Ti = num(b.Ti), dTmax = Ti - Ta;
+    var p = 101325 * Math.pow(1 - 2.25577e-5 * num(b.alt), 5.25588), rho = p / (287.05 * (Ta + 273.15)), cp = 1005;
+    var riseNoFan = UA > 0 ? Pv / UA : NaN, Qpassive = UA * Math.max(dTmax, 0), Qfan = Pv - Qpassive;
+    var m = num(b.margin) / 100, Vreq = (dTmax > 0 && Qfan > 0) ? Qfan * 3600 / (rho * cp * dTmax) : 0, Vd = Vreq * (1 + m);
+    var sizes = String(b.sizes).split(/[,;\s]+/).map(parseFloat).filter(function (x) { return x > 0; }).sort(function (a, c) { return a - c; });
+    var opts = [];
+    if (Vd > 0) for (var n = 1; n <= 8; n++) { for (var i = 0; i < sizes.length; i++) { if (n * sizes[i] >= Vd) {
+      if (!opts.some(function (o) { return o.s === sizes[i] && o.n <= n; })) opts.push({ n: n, s: sizes[i], tot: n * sizes[i] }); break; } } }
+    var rec = opts[0] || null, riseFan = NaN;
+    if (rec) { var Veff = rec.tot / (1 + m); riseFan = Pv / (UA + Veff * rho * cp / 3600); }
+    var maxIn = b.dev.reduce(function (s, r) { return Math.max(s, num(r.In)); }, 0);
+    return { W: W, H: H, D: D, k: k, faces: faces, Ae: Ae, Pd: Pd, Pc: Pc, Pf: Pf, Pv: Pv, UA: UA, Ta: Ta, Ti: Ti, dTmax: dTmax, p: p, rho: rho, cp: cp,
+      riseNoFan: riseNoFan, Qpassive: Qpassive, Qfan: Qfan, m: m, Vreq: Vreq, Vd: Vd, opts: opts.slice(0, 4), rec: rec, riseFan: riseFan, maxIn: maxIn, sizes: sizes };
+  }
+
+  // ---------- tables
+  var COLS = {
+    dev: [ ['desc', 'Device', 't'], ['qty', 'Qty'], ['In', 'Rated current (A)'], ['I', 'Load current (A)'], ['loss', 'Loss at rated current, all poles (W)'] ],
+    cond: [ ['desc', 'Conductor', 't'], ['sets', 'Sets'], ['I', 'Current (A)'], ['L', 'Length (m)'], ['n', 'Conductors per phase'], ['S', 'Section each (mm²)'], ['mat', 'Metal', 's'], ['kac', 'AC factor'] ],
+    fix: [ ['desc', 'Item', 't'], ['qty', 'Qty'], ['w', 'Loss each (W)'] ]
+  };
+  var BLANK = { dev: { desc: '', qty: 1, In: 100, I: 80, loss: 20 }, cond: { desc: '', sets: 1, I: 100, L: 1, n: 1, S: 100, mat: 'Cu', kac: 1 }, fix: { desc: '', qty: 1, w: 5 } };
+  function renderTable(list) {
+    var b = B(), cols = COLS[list], h = '<thead><tr>';
+    cols.forEach(function (c) { h += '<th>' + c[1] + '</th>'; });
+    h += '<th class="out">Loss (W)</th><th><span class="hint">Remove</span></th></tr></thead><tbody>';
+    b[list].forEach(function (r, i) {
+      h += '<tr>';
+      cols.forEach(function (c) {
+        var id = list + '-' + i + '-' + c[0], at = ' id="' + id + '" data-list="' + list + '" data-i="' + i + '" data-k="' + c[0] + '" aria-label="' + esc(c[1]) + '"';
+        if (c[2] === 't') h += '<td class="desc"><input type="text"' + at + ' value="' + esc(r[c[0]]) + '"></td>';
+        else if (c[2] === 's') h += '<td class="n"><select' + at + '><option value="Cu"' + (r.mat === 'Cu' ? ' selected' : '') + '>Copper</option><option value="Al"' + (r.mat === 'Al' ? ' selected' : '') + '>Aluminium</option></select></td>';
+        else h += '<td class="n"><input type="number" min="0" step="any"' + at + ' value="' + esc(r[c[0]]) + '"></td>';
+      });
+      h += '<td class="out" id="' + list + '-' + i + '-out"></td><td><button type="button" class="x" data-del="' + list + '" data-i="' + i + '" aria-label="Remove row">×</button></td></tr>';
+    });
+    if (!b[list].length) h += '<tr><td colspan="' + (cols.length + 2) + '" class="hint">No rows yet.</td></tr>';
+    h += '</tbody><tfoot><tr><td colspan="' + cols.length + '">Subtotal</td><td class="out" id="' + list + '-sum"></td><td></td></tr></tfoot>';
+    $('t-' + list).innerHTML = h;
+  }
+  function renderAll() {
+    var sel = $('boardSel'); sel.innerHTML = state.boards.map(function (b, i) { return '<option value="' + i + '"' + (i === state.cur ? ' selected' : '') + '>' + esc(b.name || 'Untitled board') + '</option>'; }).join('');
+    var b = B();
+    document.querySelectorAll('[data-b]').forEach(function (el) { el.value = b[el.getAttribute('data-b')]; });
+    ['dev', 'cond', 'fix'].forEach(renderTable);
+    resetDelete(); results();
+  }
+
+  // ---------- results
+  function barRow(label, value, max, text, cls, limitPct) {
+    var pct = max > 0 ? Math.max(0, Math.min(100, value / max * 100)) : 0;
+    return '<div class="barrow" title="' + esc(label + ': ' + text) + '"><span class="lab">' + label + '</span><div class="track"><div class="fill ' + (cls || '') + '" style="width:' + pct + '%"></div>' +
+      (limitPct != null ? '<div class="limit" style="left:calc(' + limitPct + '% - 1px)"></div>' : '') + '</div><span class="val">' + text + '</span></div>';
+  }
+  var last = null;
+  function results() {
+    var b = B(), r = calc(b), T = num(b.Tbar); last = r;
+    b.dev.forEach(function (x, i) { var c = $('dev-' + i + '-out'); if (c) c.textContent = fmt(devLoss(x), 0); });
+    b.cond.forEach(function (x, i) { var c = $('cond-' + i + '-out'); if (c) c.textContent = fmt(condLoss(x, T), 0); });
+    b.fix.forEach(function (x, i) { var c = $('fix-' + i + '-out'); if (c) c.textContent = fmt(fixLoss(x), 0); });
+    $('dev-sum').textContent = fmt(r.Pd, 0); $('cond-sum').textContent = fmt(r.Pc, 0); $('fix-sum').textContent = fmt(r.Pf, 0);
+
+    var v = $('verdict'), cls, tag, msg, tNo = r.Ta + r.riseNoFan;
+    if (!(r.Ae > 0) || !(r.Pv > 0)) { cls = 'warn'; tag = 'Inputs needed'; msg = 'Enter the enclosure size and at least one heat loss.'; }
+    else if (r.dTmax <= 0) { cls = 'crit'; tag = 'Fans cannot do this'; msg = 'The room is as hot as the allowed inside temperature. Fans only cool towards room temperature, so this needs air conditioning or a higher limit.'; }
+    else if (r.riseNoFan <= r.dTmax) {
+      var spare = r.dTmax - r.riseNoFan;
+      if (spare < 3) { cls = 'warn'; tag = 'No fan needed, but marginal'; msg = 'Natural cooling holds the inside air at about ' + fmt(tNo, 1) + ' °C, only ' + fmt(spare, 1) + ' K under the limit. A small fan would give headroom.'; }
+      else { cls = 'good'; tag = 'No fan needed'; msg = 'Natural cooling holds the inside air at about ' + fmt(tNo, 1) + ' °C, ' + fmt(spare, 1) + ' K under the ' + fmt(r.Ti, 0) + ' °C limit.'; }
+    }
+    else if (!r.rec) { cls = 'crit'; tag = 'Beyond filter fans'; msg = 'The board needs ' + fmt(r.Vd, 0) + ' m³/h, more than eight of the largest fan listed. Consider roof extract fans, a larger enclosure or air conditioning.'; }
+    else { cls = 'warn'; tag = 'Fan needed: ' + r.rec.n + ' × ' + fmt(r.rec.s, 0) + ' m³/h'; msg = 'Without fans the inside air would reach about ' + fmt(tNo, 1) + ' °C. With the recommended fans it settles near ' + fmt(r.Ta + r.riseFan, 1) + ' °C.'; }
+    v.className = 'verdict ' + cls; v.innerHTML = '<span class="tag">' + (cls === 'good' ? '✓ ' : cls === 'crit' ? '✕ ' : '! ') + tag + '</span><p>' + msg + '</p>';
+
+    $('tiles').innerHTML =
+      '<div class="tile"><span class="k">Total heat loss</span><span class="v">' + fmt(r.Pv, 0) + ' <small>W</small></span></div>' +
+      '<div class="tile"><span class="k">Effective cooling surface</span><span class="v">' + fmt(r.Ae, 2) + ' <small>m²</small></span></div>' +
+      '<div class="tile"><span class="k">Inside air, no fan</span><span class="v">' + fmt(tNo, 1) + ' <small>°C</small></span><span class="s">limit ' + fmt(r.Ti, 0) + ' °C</span></div>' +
+      '<div class="tile"><span class="k">Airflow to install</span><span class="v">' + fmt(r.Vd, 0) + ' <small>m³/h</small></span><span class="s">' + fmt(r.Vreq, 0) + ' m³/h before margin</span></div>';
+
+    var max = Math.max(r.riseNoFan || 0, r.dTmax, 1) * 1.15, lim = r.dTmax > 0 ? r.dTmax / max * 100 : null;
+    var rb = barRow('Without fans', r.riseNoFan, max, fmt(r.riseNoFan, 1) + ' K', r.riseNoFan > r.dTmax ? 'over' : '', lim);
+    if (r.rec) rb += barRow('With fans', r.riseFan, max, fmt(r.riseFan, 1) + ' K', r.riseFan > r.dTmax ? 'over' : '', lim);
+    rb += '<div class="legend"><i></i> Allowed rise ' + fmt(r.dTmax, 1) + ' K (' + fmt(r.Ti, 0) + ' °C inside at ' + fmt(r.Ta, 0) + ' °C room). Red means over the limit.</div>';
+    $('riseBars').innerHTML = rb;
+
+    var fb = '';
+    if (r.rec && r.dTmax > 0) {
+      fb = '<h3 style="margin-bottom:8px">Fan options</h3><div class="opts">' + r.opts.map(function (o, i) {
+        return '<div class="opt' + (i === 0 ? ' rec' : '') + '"><b>' + o.n + ' × ' + fmt(o.s, 0) + ' m³/h' + (i === 0 ? ' (recommended)' : '') + '</b><span>' + fmt(o.tot, 0) + ' m³/h installed</span></div>'; }).join('') +
+        '</div><ul class="plain" style="margin-top:10px"><li>Use the catalogue airflow measured with the outlet filter fitted, not the free-blowing figure.</li>' +
+        '<li>Fit each fan low on the door or side blowing in, with an outlet filter of the same size high on the opposite side.</li>' +
+        (r.W > 1.6 ? '<li>This board is ' + fmt(r.W, 1) + ' m wide. Spread several smaller fans along it, nearest the cubicles with the most heat.</li>' : '') + '</ul>';
+    }
+    $('fanBlock').innerHTML = fb;
+
+    var pm = Math.max(r.Pd, r.Pc, r.Pf, 1), pc = function (x) { return r.Pv > 0 ? ' (' + fmt(x / r.Pv * 100, 0) + '%)' : ''; };
+    $('lossBars').innerHTML = barRow('Devices', r.Pd, pm, fmt(r.Pd, 0) + ' W' + pc(r.Pd)) + barRow('Conductors', r.Pc, pm, fmt(r.Pc, 0) + ' W' + pc(r.Pc)) + barRow('Other', r.Pf, pm, fmt(r.Pf, 0) + ' W' + pc(r.Pf));
+
+    var nt = '';
+    if (r.maxIn > 1600) nt += '<p class="note">This board has a ' + fmt(r.maxIn, 0) + ' A device. IEC 61439-1 does not accept calculation as temperature-rise verification above 1600 A, so use this result for design and fan sizing only.</p>';
+    if (num(b.alt) > 2000) nt += '<p class="note" style="margin-top:8px">Above 2000 m, IEC 61439-1 treats the site as a special service condition. Confirm device ratings with the manufacturer.</p>';
+    $('notes').innerHTML = nt;
+
+    var w = [];
+    w.push('Effective surface Ae = ' + r.faces.map(function (f) { return f.n + ' ' + fmt(f.a, 2) + ' × ' + f.f; }).join(' + ') + ' = <code>' + fmt(r.Ae, 2) + ' m²</code>');
+    w.push('Heat loss Pv = ' + fmt(r.Pd, 0) + ' + ' + fmt(r.Pc, 0) + ' + ' + fmt(r.Pf, 0) + ' = <code>' + fmt(r.Pv, 0) + ' W</code>');
+    w.push('Surface cooling k × Ae = ' + r.k + ' × ' + fmt(r.Ae, 2) + ' = <code>' + fmt(r.UA, 1) + ' W/K</code>');
+    w.push('Rise without fans = Pv ÷ (k × Ae) = <code>' + fmt(r.riseNoFan, 1) + ' K</code>, so inside air = ' + fmt(r.Ta, 1) + ' + ' + fmt(r.riseNoFan, 1) + ' = <code>' + fmt(tNo, 1) + ' °C</code>');
+    w.push('Allowed rise ΔT = ' + fmt(r.Ti, 1) + ' − ' + fmt(r.Ta, 1) + ' = <code>' + fmt(r.dTmax, 1) + ' K</code>; surfaces remove k × Ae × ΔT = <code>' + fmt(r.Qpassive, 0) + ' W</code>');
+    w.push('Heat left for the fans = Pv − surfaces = <code>' + fmt(Math.max(r.Qfan, 0), 0) + ' W</code>');
+    w.push('Air at ' + fmt(num(b.alt), 0) + ' m and ' + fmt(r.Ta, 0) + ' °C: pressure ' + fmt(r.p / 1000, 1) + ' kPa, density <code>' + fmt(r.rho, 3) + ' kg/m³</code>');
+    w.push('Airflow V = heat × 3600 ÷ (density × 1005 × ΔT) = <code>' + fmt(r.Vreq, 0) + ' m³/h</code>; with ' + fmt(r.m * 100, 0) + '% margin = <code>' + fmt(r.Vd, 0) + ' m³/h</code>');
+    if (r.rec) w.push('With ' + r.rec.n + ' × ' + fmt(r.rec.s, 0) + ' m³/h (less the margin): rise = Pv ÷ (k × Ae + V × density × 1005 ÷ 3600) = <code>' + fmt(r.riseFan, 1) + ' K</code>');
+    w.push('Conductor loss = sets × 3 × I² × resistivity × length ÷ (conductors × section) × AC factor, with resistivity taken at ' + fmt(T, 0) + ' °C.');
+    $('work').innerHTML = w.map(function (x) { return '<div>' + x + '</div>'; }).join('');
+  }
+  function summaryText() {
+    var b = B(), r = last, L = [];
+    L.push('SWITCHBOARD THERMAL CHECK: ' + b.name);
+    L.push('Enclosure ' + fmt(num(b.W), 0) + ' W x ' + fmt(num(b.H), 0) + ' H x ' + fmt(num(b.D), 0) + ' D mm, effective cooling surface ' + fmt(r.Ae, 2) + ' m2');
+    L.push('Room ' + fmt(r.Ta, 0) + ' C, allowed inside ' + fmt(r.Ti, 0) + ' C, altitude ' + fmt(num(b.alt), 0) + ' m');
+    L.push('Heat loss ' + fmt(r.Pv, 0) + ' W (devices ' + fmt(r.Pd, 0) + ', conductors ' + fmt(r.Pc, 0) + ', other ' + fmt(r.Pf, 0) + ')');
+    L.push('Inside air without fans: ' + fmt(r.Ta + r.riseNoFan, 1) + ' C (rise ' + fmt(r.riseNoFan, 1) + ' K)');
+    if (r.rec) { L.push('Airflow to install: ' + fmt(r.Vd, 0) + ' m3/h (' + fmt(r.Vreq, 0) + ' m3/h plus ' + fmt(r.m * 100, 0) + '% margin)');
+      L.push('Recommended: ' + r.rec.n + ' x ' + fmt(r.rec.s, 0) + ' m3/h filter fan with matching outlet filter');
+      L.push('Inside air with fans: ' + fmt(r.Ta + r.riseFan, 1) + ' C'); }
+    else L.push(r.riseNoFan <= r.dTmax ? 'No fan needed.' : 'Filter fans are not sufficient.');
+    L.push('Method: heat balance with IEC 60890 surface factors. Estimate only; typical device losses unless replaced with manufacturer data.');
+    return L.join('\n');
+  }
+
+  // ---------- events
+  var delArmed = false;
+  function resetDelete() { delArmed = false; $('btnDel').textContent = 'Delete'; }
+  document.addEventListener('input', function (e) {
+    var t = e.target, b = B();
+    if (t.id === 'boardSel') return;
+    if (t.hasAttribute('data-b')) { var k = t.getAttribute('data-b'); b[k] = t.value; if (k === 'name') { var o = $('boardSel').options[state.cur]; if (o) o.textContent = t.value || 'Untitled board'; } }
+    else if (t.hasAttribute('data-list')) { b[t.getAttribute('data-list')][+t.getAttribute('data-i')][t.getAttribute('data-k')] = t.value; }
+    else return;
+    results(); save();
+  });
+  $('boardSel').addEventListener('change', function () { state.cur = +this.value; renderAll(); save(); });
+  document.addEventListener('click', function (e) {
+    var t = e.target, b = B();
+    if (t.hasAttribute('data-add')) { var l = t.getAttribute('data-add'); b[l].push(JSON.parse(JSON.stringify(BLANK[l]))); renderTable(l); results(); save(); var f = $(l + '-' + (b[l].length - 1) + '-desc'); if (f) f.focus(); }
+    else if (t.hasAttribute('data-del')) { var d = t.getAttribute('data-del'); b[d].splice(+t.getAttribute('data-i'), 1); renderTable(d); results(); save(); }
+    if (t.id !== 'btnDel') resetDelete();
+  });
+  $('btnNew').addEventListener('click', function () { state.boards.push(base({ name: 'New board ' + (state.boards.length + 1) })); state.cur = state.boards.length - 1; renderAll(); save(); $('b-name').focus(); });
+  $('btnDup').addEventListener('click', function () { var c = JSON.parse(JSON.stringify(B())); c.name = c.name + ' (copy)'; state.boards.push(c); state.cur = state.boards.length - 1; renderAll(); save(); });
+  $('btnDel').addEventListener('click', function () {
+    if (!delArmed) { delArmed = true; this.textContent = 'Click again to delete'; return; }
+    state.boards.splice(state.cur, 1); if (!state.boards.length) state.boards.push(base({})); state.cur = Math.max(0, state.cur - 1); renderAll(); save();
+  });
+  $('btnReset').addEventListener('click', function () { examples().forEach(function (x) { state.boards.push(x); }); state.cur = state.boards.length - 2; renderAll(); save(); });
+  $('btnCopy').addEventListener('click', function () {
+    var txt = summaryText(), btn = this, box = $('copyBox');
+    function fallback() { box.hidden = false; box.value = txt; box.focus(); box.select(); btn.textContent = 'Select and copy below'; }
+    try { navigator.clipboard.writeText(txt).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy summary'; }, 1600); }, fallback); } catch (err) { fallback(); }
+  });
+  window.__thermalCalc = calc;
+  renderAll();
+})();
+</script>
+
+</body></html>
